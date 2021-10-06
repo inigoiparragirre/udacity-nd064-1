@@ -9,7 +9,7 @@ service:
 
 image:
   repository: iiparra/techtrends
-  tag: 1.1.0
+  tag: 1.2.0 # Tagged from latest to version for production (standout exercise)
   pullPolicy: IfNotPresent
 
 replicaCount: 1
