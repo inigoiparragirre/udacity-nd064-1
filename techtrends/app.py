@@ -16,9 +16,13 @@ def get_db_connection():
 
 # Function to get a post using its ID
 def get_post(post_id):
+    global dbConnectionError
     connection = get_db_connection()
-    post = connection.execute('SELECT * FROM posts WHERE id = ?',
-                        (post_id,)).fetchone()
+    try:
+        post = connection.execute('SELECT * FROM posts WHERE id = ?',
+                            (post_id,)).fetchone()
+    except sqlite3.Error as e:
+        dbConnectionError = True
     connection.close()
     return post
 
@@ -26,13 +30,19 @@ def get_post(post_id):
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your secret key'
 dbCount = 0
+dbConnectionError = False
 
 
 # Define the main route of the web application 
 @app.route('/')
 def index():
     connection = get_db_connection()
-    posts = connection.execute('SELECT * FROM posts').fetchall()
+    global dbConnectionError
+    try:
+        posts = connection.execute('SELECT * FROM posts').fetchall()
+    except sqlite3.Error as e:
+        dbConnectionError = True
+        return
     connection.close()
     return render_template('index.html', posts=posts)
 
@@ -77,11 +87,18 @@ def create():
 # Define the health check endpoint
 @app.route('/healthz', methods=('GET', 'POST'))
 def health():
-    response = app.response_class(
+    global dbConnectionError
+    if(dbConnectionError == True):
+        response = app.response_class(
+        response=json.dumps({"result":"ERROR - unhealthy"}),
+        status=500,
+        mimetype='application/json')
+    else:
+        response = app.response_class(
         response=json.dumps({"result":"OK - healthy"}),
         status=200,
-        mimetype='application/json'
-    )
+        mimetype='application/json')
+
     return response
 
 # Define the metrics endpoint
@@ -103,4 +120,4 @@ def metrics():
 # start the application on port 3111
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-app.run(host='0.0.0.0', port='3111')
+    app.run(host='0.0.0.0', port='3111')
